@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project default="run Naming">
+    
+    <target name="run Naming">
+        <ant antfile="build.xml" inheritall="false" target="run-ns"/>
+    </target>
+    
+    <target name="run Server bob">
+        <ant antfile="build.xml" inheritall="false" target="run-server">
+            <property name="props" value="bob"/>
+        </ant>
+    </target>
+    
+    <target name="run Server tmobile">
+        <ant antfile="build.xml" inheritall="false" target="run-server">
+            <property name="props" value="tmobile"/>
+        </ant>
+    </target>
+    
+    <target name="run Client 0664">
+        <ant antfile="build.xml" inheritall="false" target="run-client">
+            <property name="prefix" value="0664"/>
+        </ant>
+    </target>
+    <target name="run Client 0676">
+        <ant antfile="build.xml" inheritall="false" target="run-client">
+            <property name="prefix" value="0676"/>
+        </ant>
+    </target>
+    
+    <target name="test all">
+        <ant antfile="build.xml" inheritall="false" target="test-server">
+        </ant>
+    </target>
+</project>

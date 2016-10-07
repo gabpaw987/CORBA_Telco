@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="telco" default="compile" basedir=".">
+    
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build"/>
+    <property name="ns.dir" value="ns"/>
+    <property name="ns.dir.location" location="${ns.dir}"/>
+    <property name="lib.dir" value="lib" />
+    <property name="test.dir" value="test"/>
+    
+    <property environment="env"/>
+    <property name="jacorb.home" value="${env.JACORB_HOME}"/>
+    
+    <path id="testing.classpath">
+        <pathelement location="${lib.dir}/junit.jar" />
+        <pathelement location="${build.dir}"/>
+        <fileset dir="${jacorb.home}/lib">
+            <include name="jacorb.jar"/>
+            <include name="jacorb-services.jar"/>
+            <include name="idl.jar"/>
+            <include name="slf4j-jdk14-1.6.4.jar"/>
+            <include name="slf4j-api-1.6.4.jar"/>
+        </fileset>
+    </path>
+
+    <path id="project.classpath" >
+        <pathelement location="${build.dir}"/>
+        <fileset dir="${jacorb.home}/lib">
+            <include name="jacorb.jar"/>
+            <include name="jacorb-services.jar"/>
+            <include name="idl.jar"/>
+            <include name="slf4j-jdk14-1.6.4.jar"/>
+            <include name="slf4j-api-1.6.4.jar"/>
+        </fileset>
+    </path>
+
+    <target name="print-env">
+        <echo message="JACORB_HOME is set to = ${env.JACORB_HOME}"/>
+        <echo message="ANT_HOME is set to = ${env.ANT_HOME}"/>
+        <echo message="src.dir is set to = ${src.dir}"/>
+    </target>
+	
+    <target name="check">
+        <fail unless="env.JACORB_HOME">
+            You must set the JACORB_HOME variable!
+        </fail>
+    </target>
+    
+    <target name="run-ns" depends="compile" description="Run JacORB naming service.">
+        <mkdir dir="${ns.dir}"/>
+        <java fork="true" classname="org.jacorb.naming.NameServer" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="jacorb.naming.ior_filename" value="${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+        </java>
+    </target>
+    
+    <target name="run-ts" depends="compile" description="Run JacORB transaction service.">
+        <java fork="true" classname="org.jacorb.transaction.TransactionService" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+        </java>
+    </target>
+    
+    <target name="run-nmg" depends="compile" description="Run JacORB name manager.">
+        <java fork="true" 
+              classname="org.jacorb.naming.namemanager.NameManager"
+              classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+        </java>
+    </target>    
+    
+    <target name="idl-compile" depends="check" description="Compile IDL file.">
+        <!-- Put "telco.idl" in the top directory of your source folder. -->
+        <java fork="true" 
+              classname="org.jacorb.idl.parser"
+              classpathref="project.classpath">
+            <arg value="-I${jacorb.home}/idl/omg/" />
+            <arg line="-d ${src.dir}" />
+            <arg value="${src.dir}/telco.idl" />
+        </java>
+    </target>
+	
+    <target name="compile" depends="check" description="Compile project.">
+        <!-- Put your properties files (*.properties such as b2.properties)
+        in the top directory of your source folder. -->
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}"
+               classpathref="project.classpath"
+               debug="true" deprecation="true"
+               includeantruntime="true"/>
+        <copy todir="${build.dir}">
+            <fileset dir="${src.dir}" includes="*.properties"/>
+        </copy>
+    </target>
+    
+    <target name="run-server" depends="compile" description="Run server.">
+        <!--<input>
+            <handler classname="org.apache.tools.ant.input.DefaultInputHandler"/>
+        </input>-->
+        <!-- Use for example "ant run-server -Dprops=b2" to run your server. -->
+        <java classname="telco.server.ConsoleServer" fork="true" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+            <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                         value="org.jacorb.transaction.TransactionInitializer"/>
+            <arg value="${props}.properties"/>
+        </java>
+    </target>
+    
+    <target name="run-server-explicit" depends="compile" description="Run server.">
+        <!--<input>
+            <handler classname="org.apache.tools.ant.input.DefaultInputHandler"/>
+        </input>-->
+        <!-- Use for example "ant run-server -Dprops=b2" to run your server. -->
+        <java classname="telco.server.ConsoleServerExplicit" fork="true" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+            <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                         value="org.jacorb.transaction.TransactionInitializer"/>
+            <arg value="${props}.properties"/>
+        </java>
+    </target>
+
+    <target name="test-server" depends="compile" description="Run all tests for the server implementation.">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${test.dir}" destdir="${build.dir}" includeantruntime="true">
+            <classpath refid="testing.classpath"/>
+        </javac>
+        <mkdir dir="tmp/rawtestoutput"/>
+        <parallel>
+            <daemons>
+                <sequential>
+                    <ant antfile="build.xml" inheritall="false" target="run-ns"/>
+                </sequential>
+                <sequential>
+                    <sleep seconds="5"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-ts"/>
+                </sequential>
+                <sequential>
+                    <sleep seconds="10"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-server">
+                        <property name="props" value="tmobile"/>
+                    </ant>
+                </sequential>   
+                <sequential>
+                    <sleep seconds="15"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-server-explicit">
+                        <property name="props" value="bob"/>
+                    </ant>
+                </sequential>   
+            </daemons>
+            <sequential>
+                <sleep seconds="20"/>
+                <junit haltonfailure="false" printsummary="true" fork="no">
+                    <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+                    <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+                    <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+                    <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+                    <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                                 value="org.jacorb.transaction.TransactionInitializer"/>
+                    <classpath path="${build.dir}">
+                        <path refid="testing.classpath" />
+                    </classpath>
+
+                    <batchtest todir="tmp/rawtestoutput">
+                        <fileset dir="test"/>
+                        <formatter type="plain"/>
+                    </batchtest>
+                </junit>
+            </sequential>     
+        </parallel>
+    </target>
+    
+    <target name="run-client" depends="compile" description="Run client.">
+        <!--<input>
+            <handler classname="org.apache.tools.ant.input.DefaultInputHandler"/>
+        </input>-->
+        <!-- Use for example "ant run-client -Dprefix=0664" to run your client. -->
+        <java classname="telco.client.ConsoleClient" fork="true" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+            <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                         value="org.jacorb.transaction.TransactionInitializer"/>
+            <arg value="${prefix}"/>
+        </java>
+    </target>
+    
+    <target name="run-client-explicit" depends="compile" description="Run client.">
+        <!--<input>
+            <handler classname="org.apache.tools.ant.input.DefaultInputHandler"/>
+        </input>-->
+        <!-- Use for example "ant run-client -Dprefix=0664" to run your client. -->
+        <java classname="telco.client.ConsoleClientExplicit" fork="true" classpathref="project.classpath">
+            <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+            <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+            <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+            <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+            <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                         value="org.jacorb.transaction.TransactionInitializer"/>
+            <arg value="${prefix}"/>
+        </java>
+    </target>
+
+    <target name="test-client" depends="compile" description="Run all tests for the client implementation.">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${test.dir}" destdir="${build.dir}" includeantruntime="true">
+            <classpath refid="testing.classpath"/>
+        </javac>
+        <mkdir dir="tmp/rawtestoutput"/>
+        <parallel>
+            <daemons>
+                <sequential>
+                    <ant antfile="build.xml" inheritall="false" target="run-ns"/>
+                </sequential>
+                <sequential>
+                    <sleep seconds="5"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-ts"/>
+                </sequential>
+                <sequential>
+                    <sleep seconds="10"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-server">
+                        <property name="props" value="tmobile"/>
+                    </ant>
+                </sequential>  
+                <sequential>
+                    <sleep seconds="15"/>
+                    <ant antfile="build.xml" inheritall="false" target="run-server-explicit">
+                        <property name="props" value="bob"/>
+                    </ant>
+                </sequential>    
+            </daemons>
+            <sequential>
+                <sleep seconds="20"/>
+                <junit haltonfailure="false" printsummary="true" fork="no">
+                    <sysproperty key="org.omg.CORBA.ORBClass" value="org.jacorb.orb.ORB"/>
+                    <sysproperty key="org.omg.CORBA.ORBSingletonClass" value="org.jacorb.orb.ORBSingleton"/>
+                    <sysproperty key="ORBInitRef.NameService" value="file://${ns.dir.location}/NS_REF"/>
+                    <sysproperty key="java.util.logging.config.file" value="${build.dir}/logging.properties"/>
+                    <sysproperty key="org.omg.PortableInterceptor.ORBInitializerClass.TSClientInit"
+                                 value="org.jacorb.transaction.TransactionInitializer"/>
+                    <classpath path="${build.dir}">
+                        <path refid="testing.classpath" />
+                    </classpath>
+
+                    <batchtest todir="tmp/rawtestoutput">
+                        <fileset dir="test"/>
+                        <formatter type="plain"/>
+                    </batchtest>
+                </junit>
+            </sequential>     
+        </parallel>
+        
+    </target>
+    
+    <target name="rebuild" depends="clean, compile" description="Clean and build products." />
+    
+    <target name="clean" description="Clean build products.">
+        <delete dir="${build.dir}"/>
+    </target>
+</project>

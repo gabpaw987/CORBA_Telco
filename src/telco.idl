@@ -1,0 +1,55 @@
+#include <CosTransactions.idl>
+
+module telco {	
+    module general {
+        module gen {
+            struct TelNr {
+                string prefix;
+                string suffix;
+            };
+
+            typedef sequence<TelNr> TelNrArray;
+
+            struct Message{
+                string text;
+                TelNr sender;
+                long long time;
+                TelNrArray reciever;
+            };
+
+            typedef sequence<Message> MessageArray;
+
+            exception InvalidLoginException { 
+                string reason;
+            };
+
+            exception DeliverException{
+                string reason;
+            };
+
+            interface IClient{
+                boolean onSMS(in Message m);
+                boolean onSMSExplicit(in Message m, in CosTransactions::Control control_);
+            };
+
+            interface IPublicTelco {
+                string getName();
+                string getPrefix();
+                boolean deliver(in Message m) raises(DeliverException);
+                boolean deliverExplicit(in Message m, in CosTransactions::Control control_) raises(DeliverException);
+            };
+
+            interface IPrivateTelco : IPublicTelco { // IPrivateTelco extends IPublicTelco
+                MessageArray login(in string suffix, in string pin, in IClient callback) raises(InvalidLoginException);
+                boolean logout(in string suffix, in string pin) raises(InvalidLoginException);
+                boolean send(in string suffix, in string pin, in Message m) raises(InvalidLoginException, DeliverException);
+                boolean sendExplicit(in string suffix, in string pin, in Message m) raises(InvalidLoginException, DeliverException);
+            };
+
+            interface ITransaction : CosTransactions::Resource, CosTransactions::TransactionalObject{
+                void useMessage(in Message m);
+                void useMessageExplicit(in Message m, in CosTransactions::Control control_ );
+            };
+        };
+    };
+};
